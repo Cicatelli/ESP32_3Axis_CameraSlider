@@ -37,10 +37,13 @@ A wifi based 3 axis camera slider with up to 5 programmable keyframes!
 
 To complete the build in the same way I did for the video, follow the steps below. I have also provided the full assembly in .STEP format so you can choose how to make parts yourself if you wish.
 
+---
 #### 3D Printing
 
 In the 3D files folder, there is a folder called 3D Print. Each file has a quantity at the beginning of the file name (for example, 2x means two required).
 With the exception of the electrical box and the linear plate cover, everything else should be printed with strength in mind. PETG on the strength preset is the bare minimum required for these parts.
+
+---
 
 #### Laser Cutting
 
