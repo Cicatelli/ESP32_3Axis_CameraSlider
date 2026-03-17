@@ -1,4 +1,4 @@
-# ESP32_3Axis_CameraSlider
+# ESP32 3 Axis Camera Slider
 ![Alt text](title.png "3 Axis Camera Slider")
 
 A wifi based 3 axis camera slider with up to 5 programmable keyframes!
@@ -168,4 +168,5 @@ If you're having difficulties, be sure to set debug to true to enable verbose se
 bool debug = false; //Set to true for debug serial output
 ```
 
+Visit https://slider.local
 When the controller connects to your Wifi, it will print it's IP address to the Serial prompt regardless of the state of the debug setting. Visit this IP address in your browser to access the controls.
