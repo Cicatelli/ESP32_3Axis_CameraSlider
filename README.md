@@ -31,12 +31,33 @@ Bill of Materials
 
 3x Nema 17 34mm Length - https://www.aliexpress.com/item/1005004696195501.html
 
+1x V-Slot 2060 Extrusion - https://www.aliexpress.com/item/1005006871313607.html
+
+1x 6mm GT2 Timing Belt - https://www.aliexpress.com/item/32952396111.html
+
 1x ESP32 Development Board - https://www.aliexpress.com/item/1005006458998450.html
+
+1x 5v Regulator - https://www.aliexpress.com/item/1005006005553178.html
+
+You'll also need 3x Stepper motor drivers of your choice. I used the MKS Servo42C drivers for mine, but I had quite a few problems so I'll leave this bit up to you.
 
 Hardware
 ------
 
-1x
+8x M3x8 SHCS
+
+4x M3x6 SHCS
+
+14x M3x12 SHCS
+
+4x M3x40 SHCS
+
+8x M3x8 CSK
+
+12x M3 2020 T-Nuts
+
+
+
 
 Instructions
 ======
