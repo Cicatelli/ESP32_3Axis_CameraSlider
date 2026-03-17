@@ -5,7 +5,8 @@ A wifi based 3 axis camera slider with up to 5 programmable keyframes!
 
 [Project Video Link](https://youtu.be/oJCAlG4-4G4)
 
-#### Features
+Features
+------
 
 - 3 Axis of Movement
 - Payload weight of up to 1.4kg's tested!
@@ -15,7 +16,8 @@ A wifi based 3 axis camera slider with up to 5 programmable keyframes!
 - Smooth multi-axis acceleration on short moves
 - Timelapse moves as slow as 10mm/hour possible.
 
-#### Bill of Materials
+Bill of Materials
+------
 
 2x 80t GT2 Pulley - https://www.aliexpress.com/item/1005009718089528.html
 
@@ -31,9 +33,13 @@ A wifi based 3 axis camera slider with up to 5 programmable keyframes!
 
 1x ESP32 Development Board - https://www.aliexpress.com/item/1005006458998450.html
 
-#### Hardware
+Hardware
+------
 
-### Instructions
+1x
+
+Instructions
+======
 
 To complete the build in the same way I did for the video, follow the steps below. I have also provided the full assembly in .STEP format so you can choose how to make parts yourself if you wish.
 
@@ -48,25 +54,26 @@ Laser Cutting
 
 The folders "Tilt Bracket" and "Tripod Mount Plate" are for parts that require laser cutting.
 
-* ##### Tripod Mount Plate
+#### Tripod Mount Plate
 
 There are three files in this folder, a .STEP, .DXF and .PDF file. Some laser cutting suppliers will want a .STEP file whilst others may instead want the .DXF. They may even ask for both which is fine. The PDF file contains information for the tripod thread that needs to be tapped into the plate so it should be provided along with the other files if you're expecting the plate to arrive with a thread already tapped.
 
 I would recommend getting at least two of the tripod mounting plates made, as you may want to support the slider with more than one tripod to increase stability with heavy loads.
 
-##### Tilt Bracket
+#### Tilt Bracket
 
 This folder also has three files of the same types as above but because it is a folded sheet metal part, the process may be a bit different. The DXF file just contains a flat pattern of the two parts required to make this part. This is all you should send for cutting if you are planning to fold and weld the part yourself.
 
 If you have found a supplier than can also fold and weld parts, the PDF contains folding and weld instructions and should be provided to the supplier. The STEP file contains a complete model of the part and may also be requested in this case.
 
-#### Machining
+Machining
+------
 
-##### Slider Plate
+#### Slider Plate
 
 The slider plate folder contains the same 3 files again. This part should be machined from aluminium and can be anodised if you wish. Most suppliers will want the STEP file for machining but I've supplied a DXF as well which some suppliers may want. The PDF for this part contains the information for tapping the threads needed in the plate and should be provided alongside the other files if you don't want to tap the threads yourself.
 
-##### 80t Pulley
+#### 80t Pulley
 
 This folder contains two files. If you've purchased pulleys like I did and are having them machined, the PDF should be enough information for your machinist to complete the job. Keep in mind you will need BOTH pulleys machined the same way.
 
