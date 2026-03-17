@@ -135,6 +135,8 @@ The pin assignments for the three drives and the limit switch are shown here:
 
 Not all development boards are the same layout, so make sure you follow the GPIO or pin numbers rather than just counting pins on the picture. You can also change which pins are used in the software if you can't use the pins I've chosen, but proceed with caution as there are a number of pins on the esp32 that can prevent the board from booting if they are used.
 
+The other side of your limit switch should be connected to one of the GND pins. Please note, most limit switches have three pins, one pair are normally open and the other pair are normally closed. The normally open terminals on the switch should be used for this project.
+
 You will also need to provide power to the +5v and GND pins on the ESP32 using the 5v regulator (or similar) linked above. Some stepper drivers like the servo42c's that I used require a logic voltage level to be supplied as well. If that is the case, you will need to connect the 3.3v pin on the ESP32 board to the appropriate pin on your stepper drivers.
 
 Software
@@ -147,3 +149,23 @@ You will also need to enter your Wifi SSID and Password into the following field
 const char* ssid = "YOURSSID";
 const char* password = "YOURPASSWORD";
 ```
+
+These values can be changed to suit your gear ratio, motor steps/revolution and controller microstepping setting:
+
+```
+//Stepper motor and driver config
+int MICROSTEPS = 16; //Change to suit your drives
+int gearRatio = 4; //4:1 gear reduction
+
+//Change these values to match your stepper motors steps/rev
+int R_AXIS_STEPSREV = 200;
+int T_AXIS_STEPSREV = 200;
+```
+
+If you're having difficulties, be sure to set debug to true to enable verbose serial output.
+
+```
+bool debug = false; //Set to true for debug serial output
+```
+
+When the controller connects to your Wifi, it will print it's IP address to the Serial prompt regardless of the state of the debug setting. Visit this IP address in your browser to access the controls.
