@@ -23,6 +23,8 @@ Bill of Materials
 
 4x 608 Bearing - https://www.aliexpress.com/item/1005006416257891.html
 
+2x 625 Bearing - https://www.aliexpress.com/item/1005006035549112.html
+
 2x GT2 230mm Belt - https://www.aliexpress.com/item/1005006417887084.html
 
 4x GT2 20t 5mm Bore - https://www.aliexpress.com/item/1005010499786326.html
@@ -35,6 +37,8 @@ Bill of Materials
 
 1x 6mm GT2 Timing Belt - https://www.aliexpress.com/item/32952396111.html
 
+2x 5mm Diameter 20mm long Spring - https://www.aliexpress.com/item/1005002450432704.html
+
 1x ESP32 Development Board - https://www.aliexpress.com/item/1005006458998450.html
 
 1x 5v Regulator - https://www.aliexpress.com/item/1005006005553178.html
@@ -44,7 +48,7 @@ You'll also need 3x Stepper motor drivers of your choice. I used the MKS Servo42
 Hardware
 ------
 
-8x M3x8 SHCS
+12x M3x8 SHCS
 
 4x M3x6 SHCS
 
@@ -56,7 +60,27 @@ Hardware
 
 12x M3 2020 T-Nuts
 
+1x M8x25 SHCS
 
+1x M8x30 SHCS
+
+1x M8 Nyloc Nut
+
+2x 8mm Washer
+
+7x M5x35 SHCS
+
+2x M5x20 SHCS
+
+4x M5 Nyloc Nuts
+
+4x 5mm Washer
+
+2x M2x8 SHCS
+
+1x M6 Nyloc
+
+1x M6x60 SHCS
 
 
 Instructions
@@ -102,3 +126,24 @@ There is a .STEP file included that should have an accurate enough tooth profile
 
 You could also try 3D printing this part if your payload is only ever going to be much lighter than mine. I wouldn't reccomend this approach for a heavy camera gear as there is a lot of load on these pulleys.
 
+Wiring
+------
+
+The pin assignments for the three drives and the limit switch are shown here:
+
+![Alt text](wiring.png "wiring diagram")
+
+Not all development boards are the same layout, so make sure you follow the GPIO or pin numbers rather than just counting pins on the picture. You can also change which pins are used in the software if you can't use the pins I've chosen, but proceed with caution as there are a number of pins on the esp32 that can prevent the board from booting if they are used.
+
+You will also need to provide power to the +5v and GND pins on the ESP32 using the 5v regulator (or similar) linked above. Some stepper drivers like the servo42c's that I used require a logic voltage level to be supplied as well. If that is the case, you will need to connect the 3.3v pin on the ESP32 board to the appropriate pin on your stepper drivers.
+
+Software
+------
+
+You will need to install the MultiStepperLite library for this code to compile.
+
+You will also need to enter your Wifi SSID and Password into the following fields. Make sure you keep the "" and just replace the words.
+```
+const char* ssid = "YOURSSID";
+const char* password = "YOURPASSWORD";
+```
