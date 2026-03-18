@@ -124,7 +124,7 @@ This folder contains two files. If you've purchased pulleys like I did and are h
 
 There is a .STEP file included that should have an accurate enough tooth profile that you could potentially have someone machine the pulley from billet but I really wouldn't recommend this approach as it will probably end up being far more expensive. 
 
-You could also try 3D printing this part if your payload is only ever going to be much lighter than mine. I wouldn't reccomend this approach for a heavy camera gear as there is a lot of load on these pulleys.
+You could also try 3D printing this part if your payload is only ever going to be much lighter than mine but I wouldn't reccomend this approach for a heavy camera gear as there is a lot of load on these pulleys.
 
 Wiring
 ------
@@ -146,8 +146,8 @@ Before you begin, you will need to install the MultiStepperLite library along wi
 
 If you've copied my build exactly, the only thing you should need to do to get up and running is to replace these fields with your Wifi SSID and Password. Make sure you keep the "" and just replace the words.
 ```
-  const char* ssid = "YOURSSID"; //Enter your wifi SSID here
-  const char* password = "YOURPASSWORD"; //Enter your wifi Password here
+const char* ssid = "YOURSSID"; //Enter your wifi SSID here
+const char* password = "YOURPASSWORD"; //Enter your wifi Password here
 ```
 Once the controller is running, you can then access the controls by visiting https://slider.local in your browser.
 
@@ -162,7 +162,7 @@ int maxX = 650;
 
 These values should be checked to ensure they match your gear ratio, motor steps/revolution and controller microstepping settings. xAxisPulleyT is the number of Teeth on your linear axis pulley and toothPitch is simply the distance between the teeth on the belt, which for GT2 belt is 2mm.
 
-The R, T and X Steps values that follows are simply your motors steps/revolution. Most stepper motors are 1.8 degrees per step which is 200 but check your motors datasheet if you aren't sure! (360 degrees / 1.8 = 200)
+The R, T and X Steps values that follow are simply your motors steps/revolution. Most stepper motors are 1.8 degrees per step which is 200 but check your motors datasheet if you aren't sure! (360 degrees / 1.8 = 200)
 
 ```
 int MICROSTEPS = 16;
