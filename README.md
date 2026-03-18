@@ -14,7 +14,7 @@ Features
 - 5 Programmable keyframes with configurable move times and delays
 - Works with all Step/Direction based stepper motor controllers
 - Smooth multi-axis acceleration on short moves
-- Timelapse moves as slow as 10mm/hour possible.
+- Accurate timelapse moves as slow as 0.35mm per minute
 
 Bill of Materials
 ------
@@ -142,31 +142,55 @@ You will also need to provide power to the +5v and GND pins on the ESP32 using t
 Software
 ------
 
-You will need to install the MultiStepperLite library for this code to compile.
+Before you begin, you will need to install the MultiStepperLite library along with the "esp32 by Espressif Systems" boards package for this code to compile and upload. I've included all of the user configurable settings in a section at the top of CameraSlider.ino with comment tags around them to make it easy to tell what you're allowed to change.
 
-You will also need to enter your Wifi SSID and Password into the following fields. Make sure you keep the "" and just replace the words.
+If you've copied my build exactly, the only thing you should need to do to get up and running is to replace these fields with your Wifi SSID and Password. Make sure you keep the "" and just replace the words.
 ```
-const char* ssid = "YOURSSID";
-const char* password = "YOURPASSWORD";
+  const char* ssid = "YOURSSID"; //Enter your wifi SSID here
+  const char* password = "YOURPASSWORD"; //Enter your wifi Password here
+```
+Once the controller is running, you can then access the controls by visiting https://slider.local in your browser.
+
+If the controller fails to connect to your wifi, it will host its own Access Point using the SSID: "ESP32-Slider" and Password: "12345678"
+
+mSDN won't work in Access Point mode, so you'll need to visit http://192.168.4.1 instead if you're connected to the AP.
+
+This value lmiits the travel of the Linear axis and it should be set to match the length of your slider extrusion, minus the width of the carriage. If you built my design, the carriage width is 110mm.
+```
+int maxX = 650;
 ```
 
-These values can be changed to suit your gear ratio, motor steps/revolution and controller microstepping setting:
+These values should be checked to ensure they match your gear ratio, motor steps/revolution and controller microstepping settings. xAxisPulleyT is the number of Teeth on your linear axis pulley and toothPitch is simply the distance between the teeth on the belt, which for GT2 belt is 2mm.
+
+The R, T and X Steps values that follows are simply your motors steps/revolution. Most stepper motors are 1.8 degrees per step which is 200 but check your motors datasheet if you aren't sure! (360 degrees / 1.8 = 200)
 
 ```
-//Stepper motor and driver config
-int MICROSTEPS = 16; //Change to suit your drives
-int gearRatio = 4; //4:1 gear reduction
+int MICROSTEPS = 16;
+int gearRatio = 4;
+int xAxisPulleyT = 20;
+int toothPitch = 2;
 
-//Change these values to match your stepper motors steps/rev
 int R_AXIS_STEPSREV = 200;
 int T_AXIS_STEPSREV = 200;
+int X_AXIS_STEPSMM = 200;
 ```
 
-If you're having difficulties, be sure to set debug to true to enable verbose serial output.
+The motor and limit switch IO is defined here. You can change it if needed but be careful as there are a number of pins that can't safely be used on the ESP32!
+
+```
+const int R_STEP_PIN = 13;
+const int R_DIRECTION_PIN = 14;
+const int X_STEP_PIN = 27;
+const int X_DIRECTION_PIN = 26;
+const int T_STEP_PIN = 25;
+const int T_DIRECTION_PIN = 33;
+const int X_AXIS_LIMIT = 16;
+```
+
+Finally, if you're having difficulties, be sure to set debug to true to enable verbose serial output. This will provide information from most of the steps of each calculation to help diagnose what is going on along with the controllers IP address if you're having trouble connecting.
 
 ```
 bool debug = false; //Set to true for debug serial output
 ```
 
-Visit https://slider.local
-When the controller connects to your Wifi, it will print it's IP address to the Serial prompt regardless of the state of the debug setting. Visit this IP address in your browser to access the controls.
+If you have any motion related bugs to report, please include a screenshot of your set keyframes, along with the opperation you were trying to perform (for example, set keyframe, Begin, move to keyframe etc). I'll also need a copy of the configuration settings we just covered, just obviously DON'T post your WIFI credentials as the reported issues are posted publicly and I don't need them for testing.
