@@ -43,7 +43,7 @@ Bill of Materials
 
 1x 5v Regulator - https://www.aliexpress.com/item/1005006005553178.html
 
-You'll also need 3x Stepper motor drivers of your choice. I used the MKS Servo42C drivers for mine, but I had quite a few problems so I'll leave this bit up to you.
+You'll also need 3x Stepper motor drivers of your choice. I used the MKS Servo42C drivers for mine, but I had quite a few problems with them so I'll leave this bit up to you.
 
 Hardware
 ------
