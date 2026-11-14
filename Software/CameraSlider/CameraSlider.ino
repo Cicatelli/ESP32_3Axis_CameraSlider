@@ -10,7 +10,7 @@ bool apMode = false;
 
 // ----- USER CONFIGURABLE VALUES ----- //
 
-  const char* apName = "ESP32-Slider"; //The controller will create an access point with this name if the configured wifi SSID isn't available to connect.
+  const char* apName = "PRO SLIDER"; //The controller will create an access point with this name if the configured wifi SSID isn't available to connect.
   const char* apPass = "12345678"; //Password for the access point
 
   const char* ssid = "YOURSSID"; //Enter your wifi SSID here

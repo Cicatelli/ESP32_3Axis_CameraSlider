@@ -2,7 +2,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 Control</title>
+  <title>SLIDER CONTROL</title>
   <style>
     body {
       margin: 0;
