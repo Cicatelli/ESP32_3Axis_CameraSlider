@@ -1,441 +1,672 @@
+
 #include <WiFi.h>
 #include <Arduino.h>
-#include "MultiStepperLite.h" //Library version used at time of writing: 1.2.0 
+#include "MultiStepperLite.h"
 #include <WebServer.h>
 #include "index_html.h"
 #include <ESPmDNS.h>
 
 WebServer server(80);
+
 bool apMode = false;
 
 // ----- USER CONFIGURABLE VALUES ----- //
 
-  const char* apName = "PRO SLIDER"; //The controller will create an access point with this name if the configured wifi SSID isn't available to connect.
-  const char* apPass = "12345678"; //Password for the access point
+const char* apName = "PRO SLIDER";
+const char* apPass = "12345678";
 
-  const char* ssid = "YOURSSID"; //Enter your wifi SSID here
-  const char* password = "YOURPASSWORD"; //Enter your wifi Password here
+const char* ssid = "YOURSSID";
+const char* password = "YOURPASSWORD";
 
-  int MICROSTEPS = 16; //Change to suit your drives Microstepping setting. Higher microstepping values will allow slower movements and make motors smoother.
-  int gearRatio = 4; //Gear ratio of rotation/tilt axis. Example 80t to 20t pulley is a ratio of 4:1 so value should be 4.
-  int xAxisPulleyT = 20; //Number of teeth on X axis pulley
-  int toothPitch = 2; //Belt Tooth Spacing. GT2 = 2mm
+int MICROSTEPS = 16;
+int gearRatio = 4;
+int xAxisPulleyT = 20;
+int toothPitch = 2;
 
-  //Change these values to match your stepper motors steps/rev. 1.8 degree stepper motors are 200 Steps per Rev.
-  int R_AXIS_STEPSREV = 200;
-  int T_AXIS_STEPSREV = 200;
-  int X_AXIS_STEPSMM = 200;
+int R_AXIS_STEPSREV = 200;
+int T_AXIS_STEPSREV = 200;
+int X_AXIS_STEPSMM = 200;
 
-  int maxX = 650; //This value should be the length of your slider extrusion, minus the width of the carriage. If you built my design, the width is 110mm.
+int maxX = 650;
 
-  //IO Assignments. Be careful if you reassign these as there are lots of pins you can't use on the ESP32.
-  const int R_STEP_PIN = 13;
-  const int R_DIRECTION_PIN = 14;
-  const int X_STEP_PIN = 27;
-  const int X_DIRECTION_PIN = 26;
-  const int T_STEP_PIN = 25;
-  const int T_DIRECTION_PIN = 33;
-  const int X_AXIS_LIMIT = 16;
+// ----- GPIO ESP32-S3 N16R8 ----- //
 
-  bool debug = false; //Set to true for debug serial output
+const int R_STEP_PIN = 13;
+const int R_DIRECTION_PIN = 14;
 
-// ----- END OF USER CONFIGURABLE VALUES ----- //
+const int X_STEP_PIN = 4;
+const int X_DIRECTION_PIN = 5;
+
+const int T_STEP_PIN = 6;
+const int T_DIRECTION_PIN = 7;
+
+const int X_AXIS_LIMIT = 16;
+
+bool debug = false;
+
+// ----- END CONFIGURATION ----- //
 
 #define XStepper 0
 #define RStepper 1
 #define TStepper 2
 
-//IO Debounce
+// IO Debounce
+
 int limitState;
 int lastLimitState = LOW;
-//int triggerState;
-//int lastTriggerState = LOW;
+
 unsigned long lastLimitDebounce = 0;
-//unsigned long lastTriggerDebounce = 0;
 unsigned long debounceDelay = 80;
 
-//Target and actual positions of motors. X axis is in MM, R and T axis are in Degrees
+// Motor positions
+
 long targetX = 0;
 long currentX = 0;
+
 float currentR = 0;
 float targetR = 0;
+
 float currentT = 0;
 float targetT = 0;
 
-//Acceleration Variables
-int accelSteps = 30; //Number of steps in Accel/Decel calculation.
-//These values are used to calculate the acceleration for jog moves.
+// Acceleration
+
+int accelSteps = 30;
+
 int jogRTAccelMultiplier = 6;
 int jogXAccelMultiplier = 20;
 
-//Keyframe Value Storage Arrays
+// Keyframes
+
 long key_X[5];
 float key_R[5];
 float key_T[5];
+
 bool key_Set[5] = {false};
+
 int key_Time[5];
 int key_Delay[5];
 
+String lastCommand;
 
-
-String lastCommand; //Stores last movement command as a String
-bool inStartLocation = false; //Programmed move won't begin until this variable is true.
+bool inStartLocation = false;
 
 WiFiClient sseClient;
 
 MultiStepperLite steppers(3);
 
+// ----- FUNCTION DECLARATIONS ----- //
+
+bool connectWiFi();
+void startAP();
+void checkIO();
+
+void handleCommand();
+void handleEvents();
+void handleText();
+
+void sendEvent(const String& msg);
+
+long convertMMtoSteps(int input);
+long convertStepstoMM(int input);
+
+long convertRevstoSteps(float input);
+float convertStepstoRevs(float input);
+
+long convertDegtoSteps(float input);
+float convertStepstoDegrees(float input);
+
+// These functions must also exist in your original
+// MultiStepperLite slider program.
+
+void homeXAxis();
+void jogX(int value);
+void jogR(int value);
+void jogT(int value);
+
+void returnToKey1();
+void programmedMove();
+void gotoKey(int direction);
+
+// ----- SETUP ----- //
+
 void setup() {
+
   Serial.begin(115200);
 
-  //X Axis
+  delay(1500);
+
+  Serial.println();
+  Serial.println("==============================");
+  Serial.println("      PRO SLIDER ESP32");
+  Serial.println("==============================");
+
+  // GPIO configuration
+
+  Serial.println("Configuring GPIO...");
+
   pinMode(X_AXIS_LIMIT, INPUT_PULLUP);
+
   pinMode(X_DIRECTION_PIN, OUTPUT);
-  digitalWrite(X_DIRECTION_PIN, LOW);
-
-  //R Axis
   pinMode(R_DIRECTION_PIN, OUTPUT);
-  digitalWrite(R_DIRECTION_PIN, LOW);
-
-  //T Axis
   pinMode(T_DIRECTION_PIN, OUTPUT);
+
+  digitalWrite(X_DIRECTION_PIN, LOW);
+  digitalWrite(R_DIRECTION_PIN, LOW);
   digitalWrite(T_DIRECTION_PIN, LOW);
 
+  // Initialize steppers
+
+  Serial.println("Initializing steppers...");
+
   steppers.init_stepper(XStepper, X_STEP_PIN);
+  delay(10);
+
   steppers.init_stepper(RStepper, R_STEP_PIN);
+  delay(10);
+
   steppers.init_stepper(TStepper, T_STEP_PIN);
+  delay(10);
 
-  //Axis Step Calculations
-  R_AXIS_STEPSREV = R_AXIS_STEPSREV * gearRatio * MICROSTEPS; //4:1 Reduction, 16x Multistep, 200 Step/Rev = 12800
-  T_AXIS_STEPSREV = T_AXIS_STEPSREV * gearRatio * MICROSTEPS;
-  X_AXIS_STEPSMM = ((X_AXIS_STEPSMM * MICROSTEPS) / xAxisPulleyT) / toothPitch; //20t Pulley, 16x Multistep, 200 Step/Rev, 2mm pitch = 80
+  // Axis step calculations
 
-  if (!connectWiFi())
-  {
+  R_AXIS_STEPSREV =
+    R_AXIS_STEPSREV * gearRatio * MICROSTEPS;
+
+  T_AXIS_STEPSREV =
+    T_AXIS_STEPSREV * gearRatio * MICROSTEPS;
+
+  X_AXIS_STEPSMM =
+    ((X_AXIS_STEPSMM * MICROSTEPS) /
+    xAxisPulleyT) / toothPitch;
+
+  Serial.println("Motor configuration complete.");
+
+  // WiFi connection
+
+  Serial.println("Connecting to network...");
+
+  if (!connectWiFi()) {
+
+    Serial.println("Starting AP mode...");
+
     startAP();
+
   }
 
-  /*WiFi.begin(ssid, password);
-  Serial.print("Connecting");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
+  // Web server routes
 
-  Serial.println("\nConnected!");
-
-  if (!MDNS.begin("slider")) {
-    Serial.print("Error starting mDNS, use IP to connect: ");
-    Serial.println(WiFi.localIP());
-    return;
-  } else {
-    Serial.println("mDNS Started. Visit http://slider.local for controls");
-  }*/
+  Serial.println("Configuring web server...");
 
   server.on("/", HTTP_GET, []() {
     server.send_P(200, "text/html", index_html);
   });
 
   server.on("/cmd", HTTP_POST, handleCommand);
+
   server.on("/events", HTTP_GET, handleEvents);
+
   server.on("/text", HTTP_POST, handleText);
 
   server.begin();
 
-  for(int i = 0; i < 100; i++){
+  Serial.println("Web server started.");
+
+  // Check limit switch
+
+  Serial.println("Checking limit switch...");
+
+  for (int i = 0; i < 100; i++) {
+
     checkIO();
+
+    delay(1);
+
   }
+
   delay(100);
+
+  // Homing
+
+  Serial.println("Starting X axis homing...");
+
   homeXAxis();
+
+  Serial.println("Setup completed!");
+
 }
 
-bool connectWiFi(){
+// ----- WIFI CONNECTION ----- //
+
+bool connectWiFi() {
+
   Serial.println("Connecting to WiFi...");
 
   WiFi.mode(WIFI_STA);
+
   WiFi.setHostname("slider");
 
   WiFi.begin(ssid, password);
 
   unsigned long startTime = millis();
 
-  while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000){
+  while (
+    WiFi.status() != WL_CONNECTED &&
+    millis() - startTime < 10000
+  ) {
+
     delay(500);
+
     Serial.print(".");
+
   }
 
-  if (WiFi.status() == WL_CONNECTED){
-    Serial.println("\nConnected!");
+  if (WiFi.status() == WL_CONNECTED) {
+
+    Serial.println();
+    Serial.println("WiFi connected!");
+
+    Serial.print("IP: ");
     Serial.println(WiFi.localIP());
 
-    if (MDNS.begin("slider")){
-      Serial.println("mDNS started: http://slider.local");
+    if (MDNS.begin("slider")) {
+
+      Serial.println("mDNS started.");
+
+      Serial.println("http://slider.local");
+
+    } else {
+
+      Serial.println("mDNS initialization failed.");
+
     }
 
     return true;
+
   }
 
-  Serial.println("\nWiFi failed");
+  Serial.println();
+  Serial.println("WiFi connection failed.");
+
+  WiFi.disconnect(true);
+
+  delay(100);
+
   return false;
+
 }
 
-void startAP(){
+// ----- ACCESS POINT ----- //
+
+void startAP() {
+
   Serial.println("Starting Access Point...");
 
   WiFi.mode(WIFI_AP);
+
   WiFi.softAP(apName, apPass);
 
   IPAddress IP = WiFi.softAPIP();
+
   Serial.print("AP IP: ");
   Serial.println(IP);
 
   apMode = true;
+
 }
+
+// ----- MAIN LOOP ----- //
 
 void loop() {
+
   server.handleClient();
 
-  static unsigned long last = 0;
-  if (millis() - last > 5000) {
-    last = millis();
-  }
+  checkIO();
+
+  delay(2);
+
 }
 
-long convertMMtoSteps(int input){
+// ----- POSITION CONVERSIONS ----- //
+
+long convertMMtoSteps(int input) {
+
   return (input * MICROSTEPS) * 5;
+
 }
 
-long convertStepstoMM(int input){
+long convertStepstoMM(int input) {
+
   return (input / MICROSTEPS) / 5;
+
 }
 
-long convertRevstoSteps(float input){
+long convertRevstoSteps(float input) {
+
   return R_AXIS_STEPSREV * input;
+
 }
 
-long convertStepstoRevs(float input){
-  return input / R_AXIS_STEPSREV;
+float convertStepstoRevs(float input) {
+
+  return input / (float)R_AXIS_STEPSREV;
+
 }
 
-long convertDegtoSteps(float input){
+long convertDegtoSteps(float input) {
+
   return (R_AXIS_STEPSREV * input) / 360;
+
 }
 
-void checkIO(){
+float convertStepstoDegrees(float input) {
+
+  return (input * 360.0) / R_AXIS_STEPSREV;
+
+}
+
+// ----- INPUT CHECK ----- //
+
+void checkIO() {
+
   int limitReading = digitalRead(X_AXIS_LIMIT);
 
   if (limitReading != lastLimitState) {
+
     lastLimitDebounce = millis();
+
   }
+
   if ((millis() - lastLimitDebounce) > debounceDelay) {
+
     if (limitReading != limitState) {
+
       limitState = limitReading;
+
     }
+
   }
+
   lastLimitState = limitReading;
 
-  /*int triggerReading = digitalRead(X_AXIS_LIMIT);
-
-  if (triggerReading != lastTriggerState) {
-    lastTriggerDebounce = millis();
-  }
-  if ((millis() - lastTriggerDebounce) > debounceDelay) {
-    if (triggerReading != triggerState) {
-      triggerState = triggerReading;
-    }
-  }
-  lastTriggerState = triggerReading;*/
 }
+
+// ----- SERVER EVENTS ----- //
 
 void handleEvents() {
+
   sseClient = server.client();
+
   sseClient.println("HTTP/1.1 200 OK");
+
   sseClient.println("Content-Type: text/event-stream");
+
   sseClient.println("Cache-Control: no-cache");
+
   sseClient.println("Connection: keep-alive");
+
   sseClient.println();
-}
 
-void handleCommand() {
-  String cmd = server.arg("plain");
-  Serial.println("Received command: " + cmd);
-
-  //X Handler
-  if (cmd == "+100") {
-    jogX(100);
-  } else if (cmd == "-100") {
-    jogX(-100);
-  } else if(cmd == "+10"){
-    jogX(10);
-  } else if(cmd == "-10"){
-    jogX(-10);
-  } else if(cmd == "+1"){
-    jogX(1);
-  } else if(cmd == "-1"){
-    jogX(-1);
-  }
-  //R Handler
-  if (cmd == "+30degR") {
-    jogR(30);
-  } else if (cmd == "-30degR") {
-    jogR(-30);
-  } else if(cmd == "+15degR"){
-    jogR(15);
-  } else if(cmd == "-15degR"){
-    jogR(-15);
-  } else if(cmd == "+1degR"){
-    jogR(1);
-  } else if(cmd == "-1degR"){
-    jogR(-1);
-  }
-  //T Handler
-  if (cmd == "+30degT") {
-    jogT(30);
-  } else if (cmd == "-30degT") {
-    jogT(-30);
-  } else if(cmd == "+15degT"){
-    jogT(15);
-  } else if(cmd == "-15degT"){
-    jogT(-15);
-  } else if(cmd == "+1degT"){
-    jogT(1);
-  } else if(cmd == "-1degT"){
-    jogT(-1);
-  }
-
-  if(cmd == "GotoStart"){
-    sendEvent("LOG:Returning to Key 1");
-    returnToKey1();
-  } else if(cmd == "Begin"){
-    if(inStartLocation){
-      sendEvent("LOG:Begin");
-      programmedMove();
-    } else {
-      sendEvent("LOG:Goto Start first!");
-    }
-  } else if(cmd == "PrevKey"){
-    gotoKey(0);
-    
-  } else if(cmd == "NextKey"){
-    gotoKey(1);
-  }
-
-  server.send(200, "text/plain", "OK");
 }
 
 void sendEvent(const String& msg) {
+
   if (sseClient && sseClient.connected()) {
+
     sseClient.print("data: ");
+
     sseClient.println(msg);
+
     Serial.print(msg);
+
     sseClient.println();
+
     Serial.println();
+
   }
+
 }
 
+// ----- COMMAND HANDLER ----- //
+
+void handleCommand() {
+
+  String cmd = server.arg("plain");
+
+  Serial.println("Received command: " + cmd);
+
+  // X Axis
+
+  if (cmd == "+100") {
+
+    jogX(100);
+
+  } else if (cmd == "-100") {
+
+    jogX(-100);
+
+  } else if (cmd == "+10") {
+
+    jogX(10);
+
+  } else if (cmd == "-10") {
+
+    jogX(-10);
+
+  } else if (cmd == "+1") {
+
+    jogX(1);
+
+  } else if (cmd == "-1") {
+
+    jogX(-1);
+
+  }
+
+  // R Axis
+
+  if (cmd == "+30degR") {
+
+    jogR(30);
+
+  } else if (cmd == "-30degR") {
+
+    jogR(-30);
+
+  } else if (cmd == "+15degR") {
+
+    jogR(15);
+
+  } else if (cmd == "-15degR") {
+
+    jogR(-15);
+
+  } else if (cmd == "+1degR") {
+
+    jogR(1);
+
+  } else if (cmd == "-1degR") {
+
+    jogR(-1);
+
+  }
+
+  // T Axis
+
+  if (cmd == "+30degT") {
+
+    jogT(30);
+
+  } else if (cmd == "-30degT") {
+
+    jogT(-30);
+
+  } else if (cmd == "+15degT") {
+
+    jogT(15);
+
+  } else if (cmd == "-15degT") {
+
+    jogT(-15);
+
+  } else if (cmd == "+1degT") {
+
+    jogT(1);
+
+  } else if (cmd == "-1degT") {
+
+    jogT(-1);
+
+  }
+
+  // Program commands
+
+  if (cmd == "GotoStart") {
+
+    sendEvent("LOG:Returning to Key 1");
+
+    returnToKey1();
+
+  } else if (cmd == "Begin") {
+
+    if (inStartLocation) {
+
+      sendEvent("LOG:Begin");
+
+      programmedMove();
+
+    } else {
+
+      sendEvent("LOG:Goto Start first!");
+
+    }
+
+  } else if (cmd == "PrevKey") {
+
+    gotoKey(0);
+
+  } else if (cmd == "NextKey") {
+
+    gotoKey(1);
+
+  }
+
+  server.send(200, "text/plain", "OK");
+
+}
+
+// ----- TEXT HANDLER ----- //
+
 void handleText() {
+
   String payload = server.arg("plain");
 
   int sep = payload.indexOf(':');
+
   int sep2 = payload.indexOf(':', sep + 1);
 
   if (sep < 0 || sep2 < 0) {
+
     server.send(400, "text/plain", "Bad format");
+
     return;
+
   }
 
   String btn = payload.substring(0, sep);
+
   String time = payload.substring(sep + 1, sep2);
-  String delay = payload.substring(sep2 + 1);
+
+  String delayValue = payload.substring(sep2 + 1);
+
   String output = "SET";
-  
-  if(debug){
+
+  if (debug) {
+
     Serial.println("Raw payload: " + payload);
+
     Serial.println("Button: " + btn);
+
     Serial.println("Time: " + time);
+
   }
 
-  //Set Keyframes
-  if (btn == "Set1") {
-    if(time == "-1"){
-      time = "60";
+  // Set keyframes
+
+  int keyIndex = -1;
+
+  if (btn.startsWith("Set")) {
+
+    keyIndex = btn.substring(3).toInt() - 1;
+
+    if (keyIndex < 0 || keyIndex >= 5) {
+
+      server.send(400, "text/plain", "Invalid keyframe");
+
+      return;
+
     }
-    output = output + "1:Slide=" + currentX + ", Pan=" + currentR + ", Tilt=" + currentT; //Convert Revolutions back to degrees for R and T Axis
-    key_X[0] = currentX;
-    key_R[0] = currentR;
-    key_T[0] = currentT;
-    key_Set[0] = true;
-    key_Time[0] = time.toInt();
-    key_Delay[0] = delay.toInt();
-    sendEvent("LOG:Set Key 1");
-  } else if(btn == "Set2") {
-    if(time == "-1"){
+
+    if (time == "-1") {
+
       time = "60";
+
     }
-    output = output + "2:Slide=" + currentX + ", Pan=" + currentR + ", Tilt=" + currentT + ", Time=" + time + ", Delay=" + delay; //Convert Revolutions back to degrees for R and T Axis
-    key_X[1] = currentX;
-    key_R[1] = currentR;
-    key_T[1] = currentT;
-    key_Set[1] = true;
-    key_Time[1] = time.toInt();
-    key_Delay[1] = delay.toInt();
-    sendEvent("LOG:Set Key 2");
-  } else if(btn == "Set3") {
-    if(time == "-1"){
-      time = "60";
+
+    key_X[keyIndex] = currentX;
+
+    key_R[keyIndex] = currentR;
+
+    key_T[keyIndex] = currentT;
+
+    key_Set[keyIndex] = true;
+
+    key_Time[keyIndex] = time.toInt();
+
+    key_Delay[keyIndex] = delayValue.toInt();
+
+    output += String(keyIndex + 1);
+
+    output += ":Slide=" + String(currentX);
+
+    output += ", Pan=" + String(currentR);
+
+    output += ", Tilt=" + String(currentT);
+
+    if (keyIndex > 0) {
+
+      output += ", Time=" + time;
+
+      output += ", Delay=" + delayValue;
+
     }
-    output = output + "3:Slide=" + currentX + ", Pan=" + currentR + ", Tilt=" + currentT + ", Time=" + time + ", Delay=" + delay; //Convert Revolutions back to degrees for R and T Axis
-    key_X[2] = currentX;
-    key_R[2] = currentR;
-    key_T[2] = currentT;
-    key_Set[2] = true;
-    key_Time[2] = time.toInt();
-    key_Delay[2] = delay.toInt();
-    sendEvent("LOG:Set Key 3");
-  } else if(btn == "Set4") {
-    if(time == "-1"){
-      time = "60";
-    }
-    output = output + "4:Slide=" + currentX + ", Pan=" + currentR + ", Tilt=" + currentT + ", Time=" + time + ", Delay=" + delay; //Convert Revolutions back to degrees for R and T Axis
-    key_X[3] = currentX;
-    key_R[3] = currentR;
-    key_T[3] = currentT;
-    key_Set[3] = true;
-    key_Time[3] = time.toInt();
-    key_Delay[3] = delay.toInt();
-    sendEvent("LOG:Set Key 4");
-  } else if(btn == "Set5") {
-    if(time == "-1"){
-      time = "60";
-    }
-    output = output + "5:Slide=" + currentX + ", Pan=" + currentR + ", Tilt=" + currentT + ", Time=" + time + ", Delay=" + delay; //Convert Revolutions back to degrees for R and T Axis
-    key_X[4] = currentX;
-    key_R[4] = currentR;
-    key_T[4] = currentT;
-    key_Set[4] = true;
-    key_Time[4] = time.toInt();
-    key_Delay[4] = delay.toInt();
-    sendEvent("LOG:Set Key 5");
+
+    sendEvent("LOG:Set Key " + String(keyIndex + 1));
+
   }
 
-  //Clear Keyframes
-  if(btn == "Clear1"){
-    key_Set[0] = false;
-    sendEvent("LOG:Cleared Key 1");
-  } else if(btn == "Clear2"){
-    key_Set[1] = false;
-    sendEvent("LOG:Cleared Key 2");
-  } else if(btn == "Clear3"){
-    key_Set[2] = false;
-    sendEvent("LOG:Cleared Key 3");
-  } else if(btn == "Clear4"){
-    key_Set[3] = false;
-    sendEvent("LOG:Cleared Key 4");
-  } else if(btn == "Clear5"){
-    key_Set[4] = false;
-    sendEvent("LOG:Cleared Key 5");
+  // Clear keyframes
+
+  else if (btn.startsWith("Clear")) {
+
+    keyIndex = btn.substring(5).toInt() - 1;
+
+    if (keyIndex < 0 || keyIndex >= 5) {
+
+      server.send(400, "text/plain", "Invalid keyframe");
+
+      return;
+
+    }
+
+    key_Set[keyIndex] = false;
+
+    sendEvent("LOG:Cleared Key " + String(keyIndex + 1));
+
   }
 
   sendEvent(output);
+
   server.send(200, "text/plain", "OK");
+
 }
